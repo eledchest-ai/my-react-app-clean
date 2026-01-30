@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import CommentImageUpload from "../components/ImageUpload";
+import ImageUpload from "../components/ImageUpload";
 
 type Blog = {
   id: string;
@@ -176,35 +176,48 @@ export default function ViewBlog() {
 
       <h3>Comments</h3>
 
-      <div style={{ border: "1px solid #ddd", padding: 10, marginBottom: 10 }}>
-        <textarea
-          rows={3}
-          placeholder="Write a comment..."
-          value={commentText}
-          onChange={(e) => setCommentText(e.target.value)}
-          style={{ width: "100%" }}
-        />
-        <br /><br />
-
-        <p><strong>Upload Comment Image (optional)</strong></p>
-        <CommentImageUpload onUploaded={(url: string) => setCommentImageUrl(url)} />
-
-        {commentImageUrl && (
-          <img
-            src={commentImageUrl}
-            alt=""
-            style={{ maxWidth: 200, display: "block", marginTop: 10 }}
+      {/* Guests can read comments but cannot comment */}
+      {!userId ? (
+        <p>
+          You must <Link to="/login">login</Link> to comment.
+        </p>
+      ) : (
+        <div style={{ border: "1px solid #ddd", padding: 10, marginBottom: 10 }}>
+          <textarea
+            rows={3}
+            placeholder="Write a comment..."
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value)}
+            style={{ width: "100%" }}
           />
-        )}
+          <br />
+          <br />
 
-        <br />
-        <button onClick={handleAddComment}>Post Comment</button>
-      </div>
+          <p>
+            <strong>Upload Comment Image (optional)</strong>
+          </p>
+          <ImageUpload onUploaded={(url: string) => setCommentImageUrl(url)} />
+
+          {commentImageUrl && (
+            <img
+              src={commentImageUrl}
+              alt=""
+              style={{ maxWidth: 200, display: "block", marginTop: 10 }}
+            />
+          )}
+
+          <br />
+          <button onClick={handleAddComment}>Post Comment</button>
+        </div>
+      )}
 
       {comments.length === 0 && <p>No comments yet.</p>}
 
       {comments.map((c) => (
-        <div key={c.id} style={{ border: "1px solid #eee", padding: 10, marginBottom: 10 }}>
+        <div
+          key={c.id}
+          style={{ border: "1px solid #eee", padding: 10, marginBottom: 10 }}
+        >
           <p>{c.content}</p>
 
           {c.image_url && (
@@ -213,9 +226,13 @@ export default function ViewBlog() {
 
           <small>{new Date(c.created_at).toLocaleString()}</small>
 
+          {/* Only comment owner can delete their own comment */}
           {userId === c.author_id && (
             <div>
-              <button onClick={() => handleDeleteComment(c.id)} style={{ marginTop: 6 }}>
+              <button
+                onClick={() => handleDeleteComment(c.id)}
+                style={{ marginTop: 6 }}
+              >
                 Delete Comment
               </button>
             </div>
