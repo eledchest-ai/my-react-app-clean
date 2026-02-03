@@ -2,7 +2,7 @@ import { useState } from "react";
 import { supabase } from "../lib/supabase";
 
 type Props = {
-  onUploaded: (publicUrl: string) => void;
+  onUploaded: (url: string) => void;
 };
 
 export default function ImageUpload({ onUploaded }: Props) {
@@ -14,32 +14,53 @@ export default function ImageUpload({ onUploaded }: Props) {
 
     setUploading(true);
 
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${crypto.randomUUID()}.${fileExt}`;
-    const filePath = fileName;
+    const { data: authData } = await supabase.auth.getUser();
+    const userId = authData.user?.id ?? "guest";
+
+    // Safe unique file name
+    const ext = file.name.split(".").pop() || "png";
+    const fileName = `${userId}-${Date.now()}.${ext}`;
+    const filePath = `uploads/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
-      .from("post-images")
-      .upload(filePath, file);
+      .from("images")
+      .upload(filePath, file, { upsert: true });
 
     if (uploadError) {
-      alert("Upload failed: " + uploadError.message);
       setUploading(false);
+      alert("Upload failed: " + uploadError.message);
       return;
     }
 
-    const { data } = supabase.storage.from("post-images").getPublicUrl(filePath);
-    const publicUrl = data.publicUrl;
+    const { data } = supabase.storage.from("images").getPublicUrl(filePath);
+    const url = data.publicUrl;
 
-    onUploaded(publicUrl);
+    onUploaded(url);
     setUploading(false);
-    alert("Image uploaded ✅");
+
+    // Allow selecting the same file again
+    e.target.value = "";
   }
 
   return (
-    <div>
-      <input type="file" accept="image/*" onChange={handleFileChange} />
-      {uploading && <p>Uploading...</p>}
+    <div style={{ border: "1px solid #ddd", padding: 10, borderRadius: 6 }}>
+      <label style={{ display: "block", marginBottom: 8 }}>
+        <strong>Select an image</strong>
+      </label>
+
+      {/* IMPORTANT for mobile: keep this visible and not hidden */}
+      <input
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleFileChange}
+        disabled={uploading}
+        style={{ width: "100%" }}
+      />
+
+      <p style={{ marginTop: 8, marginBottom: 0 }}>
+        {uploading ? "Uploading..." : "Choose a file to upload"}
+      </p>
     </div>
   );
 }
