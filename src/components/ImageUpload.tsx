@@ -13,17 +13,24 @@ export default function ImageUpload({ onUploaded }: Props) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // ✅ Require login for uploads
+    const { data: authData } = await supabase.auth.getUser();
+    const user = authData.user;
+
+    if (!user) {
+      alert("Please login first to upload an image.");
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
+
     setUploading(true);
 
-    const { data: authData } = await supabase.auth.getUser();
-    const userId = authData.user?.id ?? "guest";
-
     const ext = file.name.split(".").pop() || "png";
-    const fileName = `${userId}-${Date.now()}.${ext}`;
+    const fileName = `${user.id}-${Date.now()}.${ext}`;
     const filePath = `uploads/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
-      .from("images") // ✅ FIXED BUCKET NAME
+      .from("images") // ✅ must match your bucket name
       .upload(filePath, file, { upsert: true });
 
     if (uploadError) {
@@ -32,33 +39,31 @@ export default function ImageUpload({ onUploaded }: Props) {
       return;
     }
 
-    const { data } = supabase.storage
-      .from("images") // ✅ SAME BUCKET
-      .getPublicUrl(filePath);
-
+    const { data } = supabase.storage.from("images").getPublicUrl(filePath);
     const url = data.publicUrl;
 
     onUploaded(url);
-    setUploading(false);
 
-    if (inputRef.current) {
-      inputRef.current.value = "";
-    }
+    setUploading(false);
+    if (inputRef.current) inputRef.current.value = "";
   }
 
   return (
     <div style={{ border: "1px solid #ccc", padding: 12 }}>
-      <p><strong>Upload Image</strong></p>
+      <p style={{ marginTop: 0 }}>
+        <strong>Upload Image</strong>
+      </p>
 
       <label
         style={{
           display: "inline-block",
           padding: "10px",
           border: "1px solid black",
-          cursor: "pointer",
+          cursor: uploading ? "not-allowed" : "pointer",
+          opacity: uploading ? 0.6 : 1,
         }}
       >
-        Choose Image
+        {uploading ? "Uploading..." : "Choose Image"}
         <input
           ref={inputRef}
           type="file"
@@ -68,8 +73,6 @@ export default function ImageUpload({ onUploaded }: Props) {
           disabled={uploading}
         />
       </label>
-
-      <p>{uploading ? "Uploading..." : ""}</p>
     </div>
   );
 }
