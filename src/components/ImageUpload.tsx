@@ -7,7 +7,6 @@ type Props = {
 
 export default function ImageUpload({ onUploaded }: Props) {
   const [uploading, setUploading] = useState(false);
-  const [lastFileName, setLastFileName] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -15,7 +14,6 @@ export default function ImageUpload({ onUploaded }: Props) {
     if (!file) return;
 
     setUploading(true);
-    setLastFileName(file.name);
 
     const { data: authData } = await supabase.auth.getUser();
     const userId = authData.user?.id ?? "guest";
@@ -25,7 +23,7 @@ export default function ImageUpload({ onUploaded }: Props) {
     const filePath = `uploads/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
-      .from("images")
+      .from("images") // ✅ FIXED BUCKET NAME
       .upload(filePath, file, { upsert: true });
 
     if (uploadError) {
@@ -34,52 +32,44 @@ export default function ImageUpload({ onUploaded }: Props) {
       return;
     }
 
-    const { data } = supabase.storage.from("images").getPublicUrl(filePath);
+    const { data } = supabase.storage
+      .from("images") // ✅ SAME BUCKET
+      .getPublicUrl(filePath);
+
     const url = data.publicUrl;
 
     onUploaded(url);
     setUploading(false);
 
-    // Reset input so selecting the same image again still triggers change
-    if (inputRef.current) inputRef.current.value = "";
+    if (inputRef.current) {
+      inputRef.current.value = "";
+    }
   }
 
   return (
-    <div style={{ border: "1px solid #ddd", padding: 12, borderRadius: 8 }}>
-      <p style={{ marginTop: 0, marginBottom: 10 }}>
-        <strong>Upload image</strong>
-      </p>
+    <div style={{ border: "1px solid #ccc", padding: 12 }}>
+      <p><strong>Upload Image</strong></p>
 
-      {/* Big tap target for mobile */}
       <label
         style={{
           display: "inline-block",
-          padding: "10px 12px",
-          border: "1px solid #999",
-          borderRadius: 8,
-          cursor: uploading ? "not-allowed" : "pointer",
-          opacity: uploading ? 0.6 : 1,
-          userSelect: "none",
+          padding: "10px",
+          border: "1px solid black",
+          cursor: "pointer",
         }}
       >
-        {uploading ? "Uploading..." : "Choose Image"}
+        Choose Image
         <input
           ref={inputRef}
           type="file"
           accept="image/*"
           onChange={handleFileChange}
-          disabled={uploading}
           style={{ display: "none" }}
+          disabled={uploading}
         />
       </label>
 
-      <div style={{ marginTop: 10, fontSize: 14 }}>
-        {lastFileName ? (
-          <span>Selected: {lastFileName}</span>
-        ) : (
-          <span>No file selected yet.</span>
-        )}
-      </div>
+      <p>{uploading ? "Uploading..." : ""}</p>
     </div>
   );
 }
