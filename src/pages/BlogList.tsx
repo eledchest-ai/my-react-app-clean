@@ -70,7 +70,10 @@ export default function BlogList() {
           )}
 
           <p>{b.content}</p>
-          <small>{new Date(b.created_at).toLocaleString()}</small>
+          <small>
+  {new Date(b.created_at).toLocaleString("en-PH", { timeZone: "Asia/Manila" })}
+</small>
+
         </div>
       ))}
 

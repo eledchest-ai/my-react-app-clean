@@ -170,7 +170,10 @@ export default function ViewBlog() {
       )}
 
       <p>{blog.content}</p>
-      <small>{new Date(blog.created_at).toLocaleString()}</small>
+      <small>
+  {new Date(blog.created_at).toLocaleString("en-PH", { timeZone: "Asia/Manila" })}
+</small>
+
 
       <hr />
 
@@ -224,7 +227,10 @@ export default function ViewBlog() {
             <img src={c.image_url} alt="" style={{ maxWidth: 200, display: "block" }} />
           )}
 
-          <small>{new Date(c.created_at).toLocaleString()}</small>
+          <small>
+  {new Date(c.created_at).toLocaleString("en-PH", { timeZone: "Asia/Manila" })}
+</small>
+
 
           {/* Only comment owner can delete their own comment */}
           {userId === c.author_id && (

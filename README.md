@@ -1,4 +1,7 @@
 # React + TypeScript + Supabase Blog App
+## Live Demo
+- https://eledchest-ai.github.io/my-react-app-clean/
+
 
 A simple full-stack blog application built with **React**, **TypeScript**, and **Supabase** (Auth, Postgres, Storage).
 Users can register/login/logout, create posts with images, comment with images, and only the post owner can edit/delete.
