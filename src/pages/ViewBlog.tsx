@@ -34,6 +34,12 @@ export default function ViewBlog() {
   const [commentText, setCommentText] = useState("");
   const [commentImageUrl, setCommentImageUrl] = useState<string | null>(null);
 
+  // ✅ Edit comment state
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+  const [editImageUrl, setEditImageUrl] = useState<string | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+
   async function loadComments(postId: string) {
     const { data, error } = await supabase
       .from("comments")
@@ -126,11 +132,66 @@ export default function ViewBlog() {
   }
 
   async function handleDeleteComment(commentId: string) {
+    const ok = window.confirm("Delete this comment?");
+    if (!ok) return;
+
     const { error } = await supabase.from("comments").delete().eq("id", commentId);
     if (error) {
       alert("Delete comment failed: " + error.message);
       return;
     }
+    if (blog) await loadComments(blog.id);
+  }
+
+  // ✅ Start editing a comment
+  function startEdit(c: Comment) {
+    setEditingCommentId(c.id);
+    setEditText(c.content);
+    setEditImageUrl(c.image_url ?? null);
+  }
+
+  function cancelEdit() {
+    setEditingCommentId(null);
+    setEditText("");
+    setEditImageUrl(null);
+  }
+
+  // ✅ Save edited comment
+  async function handleSaveEdit() {
+    if (!editingCommentId) return;
+
+    const { data: authData } = await supabase.auth.getUser();
+    const user = authData.user;
+
+    if (!user) {
+      alert("Please login again.");
+      navigate("/login");
+      return;
+    }
+
+    if (!editText.trim()) {
+      alert("Comment cannot be empty.");
+      return;
+    }
+
+    setSavingEdit(true);
+
+    const { error } = await supabase
+      .from("comments")
+      .update({
+        content: editText.trim(),
+        image_url: editImageUrl,
+      })
+      .eq("id", editingCommentId);
+
+    setSavingEdit(false);
+
+    if (error) {
+      alert("Update failed: " + error.message);
+      return;
+    }
+
+    cancelEdit();
     if (blog) await loadComments(blog.id);
   }
 
@@ -170,81 +231,130 @@ export default function ViewBlog() {
       )}
 
       <p>{blog.content}</p>
-      <small>
-  {new Date(blog.created_at).toLocaleString("en-PH", { timeZone: "Asia/Manila" })}
-</small>
-
+      <small>{new Date(blog.created_at).toLocaleString("en-PH", { timeZone: "Asia/Manila" })}</small>
 
       <hr />
 
       <h3>Comments</h3>
 
-      {/* Guests can read comments but cannot comment */}
-      {!userId ? (
+      {/* Add Comment */}
+      <div style={{ border: "1px solid #ddd", padding: 10, marginBottom: 10 }}>
+        <textarea
+          rows={3}
+          placeholder="Write a comment..."
+          value={commentText}
+          onChange={(e) => setCommentText(e.target.value)}
+          style={{ width: "100%" }}
+        />
+        <br />
+        <br />
+
         <p>
-          You must <Link to="/login">login</Link> to comment.
+          <strong>Upload Comment Image (optional)</strong>
         </p>
-      ) : (
-        <div style={{ border: "1px solid #ddd", padding: 10, marginBottom: 10 }}>
-          <textarea
-            rows={3}
-            placeholder="Write a comment..."
-            value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
-            style={{ width: "100%" }}
+        <ImageUpload onUploaded={(url: string) => setCommentImageUrl(url)} />
+
+        {commentImageUrl && (
+          <img
+            src={commentImageUrl}
+            alt=""
+            style={{ maxWidth: 200, display: "block", marginTop: 10 }}
           />
-          <br />
-          <br />
+        )}
 
-          <p>
-            <strong>Upload Comment Image (optional)</strong>
-          </p>
-          <ImageUpload onUploaded={(url: string) => setCommentImageUrl(url)} />
-
-          {commentImageUrl && (
-            <img
-              src={commentImageUrl}
-              alt=""
-              style={{ maxWidth: 200, display: "block", marginTop: 10 }}
-            />
-          )}
-
-          <br />
-          <button onClick={handleAddComment}>Post Comment</button>
-        </div>
-      )}
+        <br />
+        <button onClick={handleAddComment}>Post Comment</button>
+      </div>
 
       {comments.length === 0 && <p>No comments yet.</p>}
 
-      {comments.map((c) => (
-        <div
-          key={c.id}
-          style={{ border: "1px solid #eee", padding: 10, marginBottom: 10 }}
-        >
-          <p>{c.content}</p>
+      {comments.map((c) => {
+        const isCommentOwner = userId === c.author_id;
+        const isEditing = editingCommentId === c.id;
 
-          {c.image_url && (
-            <img src={c.image_url} alt="" style={{ maxWidth: 200, display: "block" }} />
-          )}
+        return (
+          <div
+            key={c.id}
+            style={{ border: "1px solid #eee", padding: 10, marginBottom: 10 }}
+          >
+            {/* ✅ Edit Mode */}
+            {isEditing ? (
+              <>
+                <textarea
+                  rows={3}
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  style={{ width: "100%" }}
+                />
 
-          <small>
-  {new Date(c.created_at).toLocaleString("en-PH", { timeZone: "Asia/Manila" })}
-</small>
+                <br />
+                <br />
 
+                <p>
+                  <strong>Replace Comment Image (optional)</strong>
+                </p>
+                <ImageUpload onUploaded={(url: string) => setEditImageUrl(url)} />
 
-          {/* Only comment owner can delete their own comment */}
-          {userId === c.author_id && (
-            <div>
-              <button
-                onClick={() => handleDeleteComment(c.id)}
-                style={{ marginTop: 6 }}
-              >
-                Delete Comment
-              </button>
-            </div>
-          )}
-        </div>
-      ))}
+                {editImageUrl && (
+                  <>
+                    <img
+                      src={editImageUrl}
+                      alt=""
+                      style={{ maxWidth: 200, display: "block", marginTop: 10 }}
+                    />
+                    <button
+                      onClick={() => setEditImageUrl(null)}
+                      style={{ marginTop: 8 }}
+                    >
+                      Remove Image
+                    </button>
+                  </>
+                )}
+
+                <br />
+                <br />
+
+                <button onClick={handleSaveEdit} disabled={savingEdit}>
+                  {savingEdit ? "Saving..." : "Save"}
+                </button>
+                <button onClick={cancelEdit} style={{ marginLeft: 8 }}>
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <>
+                <p>{c.content}</p>
+
+                {c.image_url && (
+                  <img
+                    src={c.image_url}
+                    alt=""
+                    style={{ maxWidth: 200, display: "block" }}
+                  />
+                )}
+
+                <small>
+                  {new Date(c.created_at).toLocaleString("en-PH", {
+                    timeZone: "Asia/Manila",
+                  })}
+                </small>
+
+                {isCommentOwner && (
+                  <div style={{ marginTop: 8 }}>
+                    <button onClick={() => startEdit(c)}>Edit</button>
+                    <button
+                      onClick={() => handleDeleteComment(c.id)}
+                      style={{ marginLeft: 8 }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
