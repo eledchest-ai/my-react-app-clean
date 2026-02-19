@@ -8,24 +8,23 @@ export default function Register() {
   const navigate = useNavigate();
 
   async function handleRegister() {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
+    const { error } = await supabase.auth.signUp({ email, password });
 
     if (error) {
-      alert(error.message);
-    } else {
-      alert("Registered! You can now login.");
-      navigate("/login");
+      alert("Register failed: " + error.message);
+      return;
     }
+
+    alert("Registered! Please login.");
+    navigate("/login");
   }
 
   return (
-    <div style={{ padding: 20 }}>
+    <div style={{ padding: 20, backgroundColor: "white", color: "black" }}>
       <h2>Register</h2>
 
       <input
+        type="email"
         placeholder="Email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}

@@ -8,24 +8,27 @@ export default function Login() {
   const navigate = useNavigate();
 
   async function handleLogin() {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (error) {
-      alert(error.message);
-    } else {
-      alert("Logged in!");
-      navigate("/");
+      alert("Login failed: " + error.message);
+      return;
     }
+
+    console.log("USER:", data.user);
+    alert("Login successful!");
+    navigate("/");
   }
 
   return (
-    <div style={{ padding: 20 }}>
+    <div style={{ padding: 20, backgroundColor: "white", color: "black" }}>
       <h2>Login</h2>
 
       <input
+        type="email"
         placeholder="Email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
